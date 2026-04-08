@@ -1,12 +1,12 @@
 import './style.css';
-import { createIcons, Fuel, Droplet, Moon, Sun, Search } from 'lucide';
+import { createIcons, Fuel, Droplet, Moon, Sun, Search, HelpCircle, X } from 'lucide';
 import { brands } from './data/brands';
 import type { BrandProfile } from './data/brands';
 import { registerSW } from 'virtual:pwa-register';
 
 // Inicializar ícones Lucide
 createIcons({
-  icons: { Fuel, Droplet, Moon, Sun, Search }
+  icons: { Fuel, Droplet, Moon, Sun, Search, HelpCircle, X }
 });
 
 // Registrar Service Worker
@@ -31,6 +31,9 @@ const ratioDisplay = document.getElementById('ratio-display') as HTMLElement;
 const btnFuel = document.getElementById('btn-fuel') as HTMLButtonElement;
 const btnOil = document.getElementById('btn-oil') as HTMLButtonElement;
 const themeToggle = document.getElementById('theme-toggle') as HTMLButtonElement;
+const helpBtn = document.getElementById('help-btn') as HTMLButtonElement;
+const helpModal = document.getElementById('help-modal') as HTMLElement;
+const closeModal = document.getElementById('close-modal') as HTMLButtonElement;
 const directMode = document.getElementById('direct-mode') as HTMLElement;
 const inverseMode = document.getElementById('inverse-mode') as HTMLElement;
 const resultLabelText = document.getElementById('result-label-text') as HTMLElement;
@@ -171,6 +174,21 @@ themeToggle.addEventListener('click', () => {
   if (icon) {
     icon.setAttribute('data-lucide', newTheme === 'dark' ? 'moon' : 'sun');
     createIcons({ icons: { Moon, Sun } });
+  }
+});
+
+// Modal Logic
+helpBtn.addEventListener('click', () => {
+  helpModal.classList.add('active');
+});
+
+closeModal.addEventListener('click', () => {
+  helpModal.classList.remove('active');
+});
+
+helpModal.addEventListener('click', (e) => {
+  if (e.target === helpModal) {
+    helpModal.classList.remove('active');
   }
 });
 
