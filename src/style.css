@@ -63,19 +63,19 @@ header {
 }
 
 .logo-card {
-  background: var(--bg-card);
+  background: linear-gradient(to right, var(--bg-card) 0%, transparent 100%);
   padding: 12px 20px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  border: none;
+  box-shadow: -5px 5px 15px rgba(0, 0, 0, 0.1);
   flex-grow: 1;
   transition: var(--transition);
 }
 
 [data-theme="light"] .logo-card {
-  background: white;
-  border-color: rgba(var(--primary-hue), 100%, 50%, 0.1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  background: linear-gradient(to right, white 20%, transparent 100%);
+  border: none;
+  box-shadow: -5px 5px 20px rgba(0, 0, 0, 0.05);
 }
 
 h1 {
