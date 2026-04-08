@@ -19,10 +19,11 @@
 }
 
 [data-theme="light"] {
-  --bg-dark: hsl(210, 40%, 98%);
-  --bg-card: hsla(210, 40%, 90%, 0.8);
+  --bg-dark: hsl(210, 20%, 94%); /* Cor Gelo / Cinza Claro */
+  --bg-card: hsla(210, 20%, 98%, 0.9);
   --text-main: hsl(222, 47%, 11%);
-  --text-muted: hsl(215, 20%, 45%);
+  --text-muted: hsl(215, 25%, 35%); /* Mais escuro para contraste */
+  --glass: blur(8px);
 }
 
 * {
@@ -137,7 +138,12 @@ input:focus, select:focus {
   background: linear-gradient(135deg, var(--bg-card), rgba(var(--primary-hue), 100%, 50%, 0.1));
   border-radius: 12px;
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(var(--primary-hue), 100%, 50%, 0.2);
+}
+
+[data-theme="light"] .result-area {
+  background: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .result-label {
@@ -169,7 +175,7 @@ input:focus, select:focus {
 
 .brand-btn {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 12px;
   border-radius: 12px;
   color: var(--text-main);
@@ -177,6 +183,11 @@ input:focus, select:focus {
   cursor: pointer;
   transition: var(--transition);
   text-align: center;
+}
+
+[data-theme="light"] .brand-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
 }
 
 .brand-btn.active {

@@ -26,6 +26,8 @@ const ratioDescription = document.getElementById('ratio-description') as HTMLEle
 const brandSearch = document.getElementById('brand-search') as HTMLInputElement;
 const searchResults = document.getElementById('search-results') as HTMLElement;
 const brandIndicator = document.getElementById('brand-indicator') as HTMLElement;
+const ratioSlider = document.getElementById('ratio-slider') as HTMLInputElement;
+const ratioDisplay = document.getElementById('ratio-display') as HTMLElement;
 const btnFuel = document.getElementById('btn-fuel') as HTMLButtonElement;
 const btnOil = document.getElementById('btn-oil') as HTMLButtonElement;
 const themeToggle = document.getElementById('theme-toggle') as HTMLButtonElement;
@@ -84,10 +86,18 @@ function setRatio(ratio: number, profile?: BrandProfile) {
     brandIndicator.textContent = `${profile.name} - ${profile.model}`;
     brandIndicator.style.color = 'var(--primary)';
     ratioDescription.textContent = profile.description;
+    
+    // Atualizar slider
+    ratioSlider.value = ratio.toString();
+    ratioDisplay.textContent = `${ratio}:1`;
   } else {
     brandIndicator.textContent = `Proporção ${ratio}:1`;
     brandIndicator.style.color = 'var(--text-muted)';
     ratioDescription.textContent = `Fórmula: Gasolina / ${ratio}. 1L de gasolina requer ${Math.round(1000/ratio)}ml de óleo.`;
+    
+    // Atualizar slider
+    ratioSlider.value = ratio.toString();
+    ratioDisplay.textContent = `${ratio}:1`;
   }
   
   calculate();
@@ -138,6 +148,11 @@ document.addEventListener('click', (e) => {
   if (!brandSearch.contains(e.target as Node) && !searchResults.contains(e.target as Node)) {
     searchResults.classList.remove('active');
   }
+});
+
+ratioSlider.addEventListener('input', (e) => {
+  const ratio = parseInt((e.target as HTMLInputElement).value);
+  setRatio(ratio);
 });
 
 document.querySelectorAll('.brand-btn').forEach(btn => {

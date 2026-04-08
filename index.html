@@ -37,7 +37,20 @@
 
         <div class="quick-selector">
           <button class="brand-btn active" data-ratio="50">50:1</button>
+          <button class="brand-btn" data-ratio="40">40:1</button>
+          <button class="brand-btn" data-ratio="32">32:1</button>
           <button class="brand-btn" data-ratio="25">25:1</button>
+        </div>
+
+        <!-- Ajuste Manual de Proporção -->
+        <div class="input-group" style="padding-top: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label for="ratio-input">Proporção Manual</label>
+            <span id="ratio-display" style="font-size: 0.75rem; font-weight: 700; color: var(--primary);">50:1</span>
+          </div>
+          <div class="input-wrapper">
+            <input type="range" id="ratio-slider" min="10" max="100" value="50" step="1" style="height: 6px; padding: 0; background: rgba(var(--primary-hue), 100%, 50%, 0.2); border: none;" />
+          </div>
         </div>
 
         <!-- Calculadora Principal -->
