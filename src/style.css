@@ -454,7 +454,7 @@ select:focus {
   background: var(--primary);
   color: #000;
   border: none;
-  padding: 0.75rem;
+  padding: 0.875rem;
   /* Reduzido de 16px para 14px */
   border-radius: 12px;
   font-weight: 800;
