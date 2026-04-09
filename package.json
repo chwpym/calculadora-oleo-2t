@@ -13,6 +13,7 @@
     "vite": "^8.0.4"
   },
   "dependencies": {
+    "idb-keyval": "^6.2.2",
     "lucide": "^1.7.0",
     "vite-plugin-pwa": "^1.2.0"
   }

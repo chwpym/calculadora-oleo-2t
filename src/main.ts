@@ -1,132 +1,255 @@
 import './style.css';
-import { createIcons, Fuel, Droplet, Moon, Sun, Search, HelpCircle, X } from 'lucide';
+import { 
+  createIcons, Fuel, Droplet, Moon, Sun, Search, HelpCircle, X, 
+  Calculator, Cog, History, Plus, Save, Share2, Info, Trash2, Play
+} from 'lucide';
 import { brands } from './data/brands';
 import type { BrandProfile } from './data/brands';
 import { registerSW } from 'virtual:pwa-register';
+import { get, set } from 'idb-keyval';
 
-// Inicializar ícones Lucide
-createIcons({
-  icons: { Fuel, Droplet, Moon, Sun, Search, HelpCircle, X }
-});
+// Inicializar ícones
+const icons = { Fuel, Droplet, Moon, Sun, Search, HelpCircle, X, Calculator, Cog, History, Plus, Save, Share2, Info, Trash2, Play };
+createIcons({ icons });
 
-// Registrar Service Worker
+// Registrar SW
 registerSW({ immediate: true });
 
-// Estado da Aplicação
+// --- ESTADO ---
 let currentRatio = 50;
 let isInverseMode = false;
+let showCosts = false;
 
-// Elementos da UI
+interface MixRecord {
+  id: number;
+  date: string;
+  fuel: number;
+  oil: number;
+  ratio: number;
+  cost?: number;
+}
+
+interface Equipment {
+  id: number;
+  name: string;
+  ratio: number;
+}
+
+// --- ELEMENTOS ---
 const app = document.body;
 const fuelInput = document.getElementById('fuel-input') as HTMLInputElement;
 const oilInput = document.getElementById('oil-input') as HTMLInputElement;
 const resultNum = document.getElementById('result-num') as HTMLElement;
 const resultUnit = document.getElementById('result-unit') as HTMLElement;
-const ratioDescription = document.getElementById('ratio-description') as HTMLElement;
 const brandSearch = document.getElementById('brand-search') as HTMLInputElement;
 const searchResults = document.getElementById('search-results') as HTMLElement;
-const brandIndicator = document.getElementById('brand-indicator') as HTMLElement;
 const ratioSlider = document.getElementById('ratio-slider') as HTMLInputElement;
 const ratioDisplay = document.getElementById('ratio-display') as HTMLElement;
-const btnFuel = document.getElementById('btn-fuel') as HTMLButtonElement;
-const btnOil = document.getElementById('btn-oil') as HTMLButtonElement;
-const themeToggle = document.getElementById('theme-toggle') as HTMLButtonElement;
-const helpBtn = document.getElementById('help-btn') as HTMLButtonElement;
+const brandIndicator = document.getElementById('brand-indicator') as HTMLElement;
+
+// Custos
+const toggleCostsBtn = document.getElementById('toggle-costs') as HTMLButtonElement;
+const costInputs = document.getElementById('cost-inputs') as HTMLElement;
+const priceFuel = document.getElementById('price-fuel') as HTMLInputElement;
+const priceOil = document.getElementById('price-oil') as HTMLInputElement;
+const costResult = document.getElementById('cost-result') as HTMLElement;
+const totalCostVal = document.getElementById('total-cost-val') as HTMLElement;
+
+// Nav/Tabs
+const navBtns = document.querySelectorAll('.nav-btn');
+const tabViews = document.querySelectorAll('.tab-view');
+
+// Modais
 const helpModal = document.getElementById('help-modal') as HTMLElement;
-const closeModal = document.getElementById('close-modal') as HTMLButtonElement;
-const directMode = document.getElementById('direct-mode') as HTMLElement;
-const inverseMode = document.getElementById('inverse-mode') as HTMLElement;
-const resultLabelText = document.getElementById('result-label-text') as HTMLElement;
+const equipModal = document.getElementById('equip-modal') as HTMLElement;
 
-// --- LÓGICA DE CÁLCULO ---
+// Listas
+const equipList = document.getElementById('equip-list') as HTMLElement;
+const historyList = document.getElementById('history-list') as HTMLElement;
 
+// --- PERSISTÊNCIA ---
+async function saveHistory(record: MixRecord) {
+  const history = (await get('mix_history')) || [];
+  history.unshift(record);
+  await set('mix_history', history.slice(0, 10)); // Top 10
+  renderHistory();
+}
+
+async function renderHistory() {
+  const history = (await get('mix_history')) || [];
+  historyList.innerHTML = history.length ? '' : '<div class="empty-state">Seu histórico está vazio</div>';
+  
+  history.forEach((item: MixRecord) => {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.innerHTML = `
+      <div class="item-info">
+        <h4>${item.fuel}L @ ${item.ratio}:1</h4>
+        <p>${new Date(item.date).toLocaleDateString()} - ${item.oil}ml óleo</p>
+      </div>
+      <div style="font-weight: 700; color: var(--primary)">${item.cost ? 'R$ '+item.cost : ''}</div>
+    `;
+    historyList.appendChild(div);
+  });
+}
+
+async function saveEquipment(equip: Equipment) {
+  const equips = (await get('user_equip')) || [];
+  equips.push(equip);
+  await set('user_equip', equips);
+  renderEquipments();
+}
+
+async function renderEquipments() {
+  const equips = (await get('user_equip')) || [];
+  equipList.innerHTML = equips.length ? '' : '<div class="empty-state">Nenhum equipamento salvo</div>';
+  
+  equips.forEach((item: Equipment) => {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.innerHTML = `
+      <div class="item-info">
+        <h4>${item.name}</h4>
+        <p>Proporção fixa ${item.ratio}:1</p>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="header-btn use-equip" data-ratio="${item.ratio}" style="width: 32px; height: 32px; background: var(--primary); color: #000;"><i data-lucide="play" style="width: 14px;"></i></button>
+        <button class="header-btn delete-equip" data-id="${item.id}" style="width: 32px; height: 32px; color: var(--danger);"><i data-lucide="trash-2" style="width: 14px;"></i></button>
+      </div>
+    `;
+    
+    div.querySelector('.use-equip')?.addEventListener('click', () => {
+      setRatio(item.ratio);
+      switchTab('view-calc');
+    });
+
+    div.querySelector('.delete-equip')?.addEventListener('click', async () => {
+      const filtered = equips.filter((e: Equipment) => e.id !== item.id);
+      await set('user_equip', filtered);
+      renderEquipments();
+    });
+
+    equipList.appendChild(div);
+  });
+  createIcons({ icons });
+}
+
+// --- CÁLCULO ---
 function calculate() {
+  const fuel = parseFloat(fuelInput.value) || 0;
+  const oil = parseFloat(oilInput.value) || 0;
+  let totalCost = 0;
+
   if (!isInverseMode) {
-    // Gasolina -> Óleo (Litros para ML)
-    const fuel = parseFloat(fuelInput.value) || 0;
     const oilNeeded = (fuel * 1000) / currentRatio;
+    resultNum.textContent = oilNeeded > 1000 ? (oilNeeded / 1000).toFixed(2) : Math.round(oilNeeded).toString();
+    resultUnit.textContent = oilNeeded > 1000 ? 'L' : 'ml';
     
-    // Formatação amigável
-    if (oilNeeded > 1000) {
-      resultNum.textContent = (oilNeeded / 1000).toFixed(2);
-      resultUnit.textContent = 'L';
-    } else {
-      resultNum.textContent = Math.round(oilNeeded).toString();
-      resultUnit.textContent = 'ml';
-    }
-    
-    if (fuel > 100) {
-      fuelInput.style.borderColor = 'var(--danger)';
-    } else {
-      fuelInput.style.borderColor = '';
+    if (showCosts) {
+      const pF = parseFloat(priceFuel.value) || 0;
+      const pO = parseFloat(priceOil.value) || 0;
+      totalCost = (fuel * pF) + ((oilNeeded / 1000) * pO);
     }
   } else {
-    // Óleo -> Gasolina (ML para Litros)
-    const oil = parseFloat(oilInput.value) || 0;
     const fuelNeeded = (oil * currentRatio) / 1000;
-    
     resultNum.textContent = fuelNeeded.toFixed(2);
     resultUnit.textContent = 'L';
+    
+    if (showCosts) {
+      const pF = parseFloat(priceFuel.value) || 0;
+      const pO = parseFloat(priceOil.value) || 0;
+      totalCost = (fuelNeeded * pF) + ((oil / 1000) * pO);
+    }
+  }
+
+  if (showCosts && totalCost > 0) {
+    costResult.style.display = 'block';
+    totalCostVal.textContent = totalCost.toFixed(2);
+  } else {
+    costResult.style.display = 'none';
   }
 }
 
-// --- GERENCIAMENTO DE MARCAS ---
-
 function setRatio(ratio: number, profile?: BrandProfile) {
   currentRatio = ratio;
+  ratioSlider.value = ratio.toString();
+  ratioDisplay.textContent = `${ratio}:1`;
   
-  // Atualizar visual da UI
   document.querySelectorAll('.brand-btn').forEach(btn => {
-    const btnRatio = parseInt(btn.getAttribute('data-ratio') || '0');
-    if (btnRatio === ratio && !profile) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
+    btn.classList.toggle('active', parseInt(btn.getAttribute('data-ratio') || '0') === ratio && !profile);
   });
 
   if (profile) {
     brandIndicator.textContent = `${profile.name} - ${profile.model}`;
     brandIndicator.style.color = 'var(--primary)';
-    ratioDescription.textContent = profile.description;
-    
-    // Atualizar slider
-    ratioSlider.value = ratio.toString();
-    ratioDisplay.textContent = `${ratio}:1`;
   } else {
     brandIndicator.textContent = `Proporção ${ratio}:1`;
     brandIndicator.style.color = 'var(--text-muted)';
-    ratioDescription.textContent = `Fórmula: Gasolina / ${ratio}. 1L de gasolina requer ${Math.round(1000/ratio)}ml de óleo.`;
-    
-    // Atualizar slider
-    ratioSlider.value = ratio.toString();
-    ratioDisplay.textContent = `${ratio}:1`;
   }
-  
   calculate();
 }
 
-// --- BUSCA E FILTROS ---
+// --- INTERAÇÕES ---
+function switchTab(tabId: string) {
+  tabViews.forEach(v => (v as HTMLElement).style.display = v.id === tabId ? 'flex' : 'none');
+  navBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tabId));
+  if (tabId === 'view-history') renderHistory();
+  if (tabId === 'view-equip') renderEquipments();
+}
 
-function renderSearchResults(term: string) {
-  const filtered = brands.filter(b => 
-    b.name.toLowerCase().includes(term.toLowerCase()) || 
-    (b.model && b.model.toLowerCase().includes(term.toLowerCase()))
-  );
+// Event Listeners
+navBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab') || 'view-calc')));
 
-  searchResults.innerHTML = '';
+document.querySelectorAll('.vol-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    fuelInput.value = btn.getAttribute('data-val') || '';
+    calculate();
+  });
+});
+
+toggleCostsBtn.addEventListener('click', () => {
+  showCosts = !showCosts;
+  costInputs.style.display = showCosts ? 'flex' : 'none';
+  calculate();
+});
+
+document.getElementById('save-mix')?.addEventListener('click', () => {
+  const fuel = parseFloat(fuelInput.value) || 0;
+  if (fuel <= 0) return;
   
-  if (filtered.length > 0 && term) {
-    filtered.forEach(brand => {
+  const oil = parseFloat(resultNum.textContent || '0');
+  const unit = resultUnit.textContent;
+  const cost = showCosts ? parseFloat(totalCostVal.textContent || '0') : undefined;
+
+  saveHistory({
+    id: Date.now(),
+    date: new Date().toISOString(),
+    fuel,
+    oil: unit === 'L' ? oil * 1000 : oil,
+    ratio: currentRatio,
+    cost
+  });
+});
+
+document.getElementById('share-btn')?.addEventListener('click', () => {
+  const msg = `Mix2T Calc: Misture ${resultNum.textContent}${resultUnit.textContent} de óleo em ${fuelInput.value}L de gasolina (Proporção ${currentRatio}:1).`;
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`);
+});
+
+// Busca Marcas
+brandSearch.addEventListener('input', (e) => {
+  const term = (e.target as HTMLInputElement).value.toLowerCase();
+  const filtered = brands.filter(b => b.name.toLowerCase().includes(term) || b.model?.toLowerCase().includes(term));
+  
+  searchResults.innerHTML = '';
+  if (term && filtered.length) {
+    filtered.forEach(b => {
       const item = document.createElement('div');
       item.className = 'search-item';
-      item.innerHTML = `
-        <strong>${brand.name}</strong> - ${brand.model}
-        <div style="font-size: 0.7rem; color: var(--text-muted)">Proporção ${brand.ratio}:1</div>
-      `;
+      item.innerHTML = `<strong>${b.name}</strong> - ${b.model} <small>(${b.ratio}:1)</small>`;
       item.onclick = () => {
-        setRatio(brand.ratio, brand);
-        brandSearch.value = brand.name;
+        setRatio(b.ratio, b);
+        brandSearch.value = b.name;
         searchResults.classList.remove('active');
       };
       searchResults.appendChild(item);
@@ -135,82 +258,46 @@ function renderSearchResults(term: string) {
   } else {
     searchResults.classList.remove('active');
   }
-}
-
-// --- EVENT LISTENERS ---
-
-fuelInput.addEventListener('input', calculate);
-oilInput.addEventListener('input', calculate);
-
-brandSearch.addEventListener('input', (e) => {
-  renderSearchResults((e.target as HTMLInputElement).value);
 });
 
-// Fechar busca ao clicar fora
-document.addEventListener('click', (e) => {
-  if (!brandSearch.contains(e.target as Node) && !searchResults.contains(e.target as Node)) {
-    searchResults.classList.remove('active');
+// Tema e Modais
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+  const isDark = app.getAttribute('data-theme') === 'dark';
+  app.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  const icon = document.getElementById('theme-icon');
+  icon?.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+  createIcons({ icons });
+});
+
+document.getElementById('help-btn')?.addEventListener('click', () => helpModal.classList.add('active'));
+document.getElementById('close-modal')?.addEventListener('click', () => helpModal.classList.remove('active'));
+
+document.getElementById('add-equip-btn')?.addEventListener('click', () => equipModal.classList.add('active'));
+document.getElementById('close-equip-modal')?.addEventListener('click', () => equipModal.classList.remove('active'));
+
+document.getElementById('save-new-equip')?.addEventListener('click', () => {
+  const name = (document.getElementById('new-equip-name') as HTMLInputElement).value;
+  const ratio = parseFloat((document.getElementById('new-equip-ratio') as HTMLInputElement).value);
+  if (name && ratio) {
+    saveEquipment({ id: Date.now(), name, ratio });
+    equipModal.classList.remove('active');
   }
 });
 
-ratioSlider.addEventListener('input', (e) => {
-  const ratio = parseInt((e.target as HTMLInputElement).value);
-  setRatio(ratio);
-});
-
-document.querySelectorAll('.brand-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const ratio = parseInt(btn.getAttribute('data-ratio') || '50');
-    setRatio(ratio);
+// Inputs Listeners
+[fuelInput, oilInput, ratioSlider, priceFuel, priceOil].forEach(el => {
+  el.addEventListener('input', () => {
+    if (el === ratioSlider) ratioDisplay.textContent = `${ratioSlider.value}:1`;
+    currentRatio = parseInt(ratioSlider.value);
+    calculate();
   });
 });
 
-themeToggle.addEventListener('click', () => {
-  const currentTheme = app.getAttribute('data-theme');
-  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  app.setAttribute('data-theme', newTheme);
-  
-  const icon = document.getElementById('theme-icon');
-  if (icon) {
-    icon.setAttribute('data-lucide', newTheme === 'dark' ? 'moon' : 'sun');
-    createIcons({ icons: { Moon, Sun } });
-  }
-});
-
-// Modal Logic
-helpBtn.addEventListener('click', () => {
-  helpModal.classList.add('active');
-});
-
-closeModal.addEventListener('click', () => {
-  helpModal.classList.remove('active');
-});
-
-helpModal.addEventListener('click', (e) => {
-  if (e.target === helpModal) {
-    helpModal.classList.remove('active');
-  }
-});
-
-btnFuel.addEventListener('click', () => {
-  isInverseMode = false;
-  btnFuel.classList.add('active');
-  btnOil.classList.remove('active');
-  directMode.style.display = 'block';
-  inverseMode.style.display = 'none';
-  resultLabelText.textContent = 'ÓLEO NECESSÁRIO';
-  calculate();
-});
-
-btnOil.addEventListener('click', () => {
-  isInverseMode = true;
-  btnOil.classList.add('active');
-  btnFuel.classList.remove('active');
-  directMode.style.display = 'none';
-  inverseMode.style.display = 'block';
-  resultLabelText.textContent = 'GASOLINA NECESSÁRIA';
-  calculate();
+document.querySelectorAll('.brand-btn').forEach(btn => {
+  btn.addEventListener('click', () => setRatio(parseInt(btn.getAttribute('data-ratio') || '50')));
 });
 
 // Inicialização
+renderEquipments();
+renderHistory();
 setRatio(50);

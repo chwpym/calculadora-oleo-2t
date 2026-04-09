@@ -1,28 +1,33 @@
 :root {
   /* Cores Principais - Mude aqui para alterar o app todo */
-  --primary-hue: 24; /* Laranja/Ouro */
+  --primary-hue: 24;
+  /* Laranja/Ouro */
   --primary: hsl(var(--primary-hue), 100%, 50%);
   --primary-hover: hsl(var(--primary-hue), 100%, 40%);
   --primary-glow: hsla(var(--primary-hue), 100%, 50%, 0.3);
-  
-  --bg-dark: hsl(222, 47%, 11%); /* Deep Slate */
+
+  --bg-dark: hsl(222, 47%, 11%);
+  /* Deep Slate */
   --bg-card: hsla(222, 47%, 15%, 0.8);
   --text-main: hsl(210, 40%, 98%);
   --text-muted: hsl(215, 20%, 65%);
-  
-  --success: hsl(142, 70%, 45%); /* Verde sutil apenas para sucesso */
+
+  --success: hsl(142, 70%, 45%);
+  /* Verde sutil apenas para sucesso */
   --danger: hsl(0, 84%, 60%);
-  
+
   --radius: 16px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --glass: blur(12px) saturate(180%);
 }
 
 [data-theme="light"] {
-  --bg-dark: hsl(210, 20%, 94%); /* Cor Gelo / Cinza Claro */
+  --bg-dark: hsl(210, 20%, 94%);
+  /* Cor Gelo / Cinza Claro */
   --bg-card: hsla(210, 20%, 98%, 0.9);
   --text-main: hsl(222, 47%, 11%);
-  --text-muted: hsl(215, 25%, 35%); /* Mais escuro para contraste */
+  --text-muted: hsl(215, 25%, 35%);
+  /* Mais escuro para contraste */
   --glass: blur(8px);
 }
 
@@ -108,7 +113,7 @@ h1 {
 
 [data-theme="light"] .header-btn {
   background: white;
-  border-color: rgba(0,0,0,0.1);
+  border-color: rgba(0, 0, 0, 0.1);
 }
 
 .header-btn:active {
@@ -146,21 +151,35 @@ label {
   align-items: center;
 }
 
-input, select {
+input,
+select {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 14px 16px;
-  font-size: 1.125rem;
+  padding: 0.75rem 1rem;
+  /* Reduzido de 14px para ~12px */
+  font-size: 1rem;
+  /* Reduzido de 1.125rem */
   color: var(--text-main);
   outline: none;
   transition: var(--transition);
 }
 
-input:focus, select:focus {
+[data-theme="light"] input,
+[data-theme="light"] select {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.15);
+  /* Mais contraste no modo claro */
+  color: #000;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus,
+select:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px var(--primary-glow);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+  /* Foco mais fino */
 }
 
 .result-area {
@@ -335,8 +354,8 @@ input:focus, select:focus {
 
 [data-theme="light"] .modal-content {
   background: white;
-  border-color: rgba(0,0,0,0.1);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .modal-close {
@@ -385,15 +404,182 @@ input:focus, select:focus {
   line-height: 1.4;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* PRO Features Styles */
+.volume-shortcuts {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  /* Corrigido o overlap */
 }
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+
+.vol-btn {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.81rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition);
+  flex: 1;
 }
-.modal-content {
-  animation: slideUp 0.3s ease-out;
+
+[data-theme="light"] .vol-btn {
+  background: white;
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+.vol-btn:active {
+  transform: translateY(2px);
+  background: var(--primary);
+  color: #000;
+}
+
+.text-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.81rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-btn {
+  background: var(--primary);
+  color: #000;
+  border: none;
+  padding: 0.75rem;
+  /* Reduzido de 16px para 14px */
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 0.93rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: var(--transition);
+}
+
+.action-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.9);
+}
+
+.shake-reminder {
+  font-size: 0.75rem;
+  color: var(--primary);
+  background: rgba(var(--primary-hue), 100%, 50%, 0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+/* List Styling */
+.list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.list-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 16px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+[data-theme="light"] .list-item {
+  background: white;
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+.item-info h4 {
+  font-size: 0.93rem;
+  margin-bottom: 2px;
+}
+
+.item-info p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.input-suffix {
+  position: absolute;
+  right: 16px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.custom-slider {
+  width: 100%;
+  height: 2px;
+  margin: 1.5rem 0;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  outline: none;
+  border: none;
+}
+
+[data-theme="light"] .custom-slider {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.custom-slider:active,
+.custom-slider:focus {
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.custom-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  /* Reduzido levemente para acompanhar a espessura */
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--primary-glow);
+  border: 3px solid var(--bg-dark);
+  /* Reduzido para ficar mais delicado */
 }
