@@ -5,15 +5,20 @@ import {
 } from 'lucide';
 import { brands } from './data/brands';
 import type { BrandProfile } from './data/brands';
-import { registerSW } from 'virtual:pwa-register';
 import { get, set } from 'idb-keyval';
 
 // Inicializar ícones
 const icons = { Fuel, Droplet, Moon, Sun, Search, HelpCircle, X, Calculator, Cog, History, Plus, Save, Share2, Info, Trash2, Play };
 createIcons({ icons });
 
-// Registrar SW
-registerSW({ immediate: true });
+// Registro Manual do Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW pronto!', reg))
+      .catch(err => console.log('Erro no SW:', err));
+  });
+}
 
 // --- ESTADO ---
 let currentRatio = 50;
