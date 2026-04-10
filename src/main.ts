@@ -31,10 +31,31 @@ createIcons({ icons });
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('SW pronto!', reg))
+      .then(reg => {
+        console.log('SW pronto!', reg);
+        reg.onupdatefound = () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.onstatechange = () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                window.location.reload();
+              }
+            };
+          }
+        };
+      })
       .catch(err => console.log('Erro no SW:', err));
   });
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
 }
+
 
 // --- ESTADO ---
 let currentRatio = 50;
