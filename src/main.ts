@@ -32,31 +32,22 @@ interface MixRecord {
   oil: number;
   ratio: number;
   cost?: number;
-}
-
-interface Equipment {
-  id: number;
-  name: string;
-  ratio: number;
-}
+let isCostEnabled = false;
 
 // --- ELEMENTOS ---
-const app = document.body;
+const ratioSlider = document.getElementById('ratio-slider') as HTMLInputElement;
+const ratioDisplay = document.getElementById('ratio-display') as HTMLElement;
+const brandSearch = document.getElementById('brand-search') as HTMLInputElement;
+const searchResults = document.getElementById('search-results') as HTMLElement;
 const fuelInput = document.getElementById('fuel-input') as HTMLInputElement;
 const oilInput = document.getElementById('oil-input') as HTMLInputElement;
 const resultNum = document.getElementById('result-num') as HTMLElement;
 const resultUnit = document.getElementById('result-unit') as HTMLElement;
-const brandSearch = document.getElementById('brand-search') as HTMLInputElement;
-const searchResults = document.getElementById('search-results') as HTMLElement;
-const ratioSlider = document.getElementById('ratio-slider') as HTMLInputElement;
-const ratioDisplay = document.getElementById('ratio-display') as HTMLElement;
+const resultLabelText = document.getElementById('result-label-text') as HTMLElement;
 const brandIndicator = document.getElementById('brand-indicator') as HTMLElement;
-
-// Custos
-const toggleCostsBtn = document.getElementById('toggle-costs') as HTMLButtonElement;
 const costInputs = document.getElementById('cost-inputs') as HTMLElement;
-const priceFuel = document.getElementById('price-fuel') as HTMLInputElement;
-const priceOil = document.getElementById('price-oil') as HTMLInputElement;
+const priceFuelInput = document.getElementById('price-fuel') as HTMLInputElement;
+const priceOilInput = document.getElementById('price-oil') as HTMLInputElement;
 const costResult = document.getElementById('cost-result') as HTMLElement;
 const totalCostVal = document.getElementById('total-cost-val') as HTMLElement;
 

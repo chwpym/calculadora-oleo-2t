@@ -19,6 +19,7 @@
         <div class="logo-card">
           <h1>Mix2T Calc <span style="font-size: 0.6rem; vertical-align: top; color: var(--primary);">PRO</span></h1>
           <p id="brand-indicator" style="font-size: 0.75rem; color: var(--text-muted);">Pronto para misturar</p>
+          <div class="pwa-badge">OFICIAL • OFFLINE-READY</div>
         </div>
         <div class="header-actions">
           <button id="help-btn" class="header-btn" aria-label="Ajuda">
@@ -32,6 +33,12 @@
 
       <!-- ABA: CALCULADORA -->
       <main id="view-calc" class="main-card animate-in tab-view">
+        <!-- Seletor de Modo -->
+        <div class="mode-switcher">
+          <button id="mode-direct" class="mode-btn active" data-mode="direct">GASOLINA → ÓLEO</button>
+          <button id="mode-inverse" class="mode-btn" data-mode="inverse">ÓLEO → GASOLINA</button>
+        </div>
+
         <div class="search-container">
           <div class="input-wrapper">
             <input type="text" id="brand-search" placeholder="Buscar marca ou modelo..." autocomplete="off" />
@@ -41,44 +48,41 @@
         </div>
 
         <div class="quick-selector">
-          <button class="brand-btn active" data-ratio="50">50:1</button>
-          <button class="brand-btn" data-ratio="40">40:1</button>
-          <button class="brand-btn" data-ratio="32">32:1</button>
-          <button class="brand-btn" data-ratio="25">25:1</button>
+          <button class="brand-btn active" data-ratio="50">50:1 <span>Sintético</span></button>
+          <button class="brand-btn" data-ratio="40">40:1 <span>Semi-Sint.</span></button>
+          <button class="brand-btn" data-ratio="32">32:1 <span>Standard</span></button>
+          <button class="brand-btn" data-ratio="25">25:1 <span>Mineral</span></button>
         </div>
 
         <div class="input-group">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label>Proporção Manual</label>
+            <label>Proporção Manual (X:1)</label>
             <span id="ratio-display" style="font-size: 0.75rem; font-weight: 700; color: var(--primary);">50:1</span>
           </div>
           <input type="range" id="ratio-slider" min="10" max="100" value="50" step="1" class="custom-slider" />
         </div>
 
         <!-- Modo de Entrada -->
-        <div id="direct-mode" class="calc-mode">
+        <div id="direct-mode-ui" class="calc-mode-ui">
           <div class="input-group">
-            <label for="fuel-input">Gasolina</label>
+            <label id="main-input-label" for="fuel-input">Quantidade de Gasolina</label>
             <div class="input-wrapper">
               <input type="number" id="fuel-input" inputmode="decimal" placeholder="Ex: 1" step="0.1" />
-              <span class="input-suffix">LITROS</span>
+              <input type="number" id="oil-input" inputmode="decimal" style="display: none;" placeholder="Ex: 20" />
+              <span id="main-input-suffix" class="input-suffix">LITROS</span>
             </div>
           </div>
-          <div class="volume-shortcuts">
+          <div id="shortcuts-fuel" class="volume-shortcuts">
             <button class="vol-btn" data-val="1">1L</button>
+            <button class="vol-btn" data-val="2">2L</button>
             <button class="vol-btn" data-val="5">5L</button>
             <button class="vol-btn" data-val="10">10L</button>
-            <button class="vol-btn" data-val="20">20L</button>
           </div>
-        </div>
-
-        <div id="inverse-mode" class="calc-mode" style="display: none;">
-          <div class="input-group">
-            <label for="oil-input">Óleo</label>
-            <div class="input-wrapper">
-              <input type="number" id="oil-input" inputmode="decimal" placeholder="Ex: 20" />
-              <span class="input-suffix">ML</span>
-            </div>
+          <div id="shortcuts-oil" class="volume-shortcuts" style="display: none;">
+            <button class="vol-btn" data-val="20">20ml</button>
+            <button class="vol-btn" data-val="40">40ml</button>
+            <button class="vol-btn" data-val="100">100ml</button>
+            <button class="vol-btn" data-val="500">500ml</button>
           </div>
         </div>
 
@@ -105,6 +109,9 @@
           <div id="result-label-text" class="result-label">ÓLEO NECESSÁRIO</div>
           <div class="result-value">
             <span id="result-num">0</span><span id="result-unit" class="unit">ml</span>
+          </div>
+          <div id="safety-badge" class="status-badge status-safe">
+            <i data-lucide="info" style="width: 12px;"></i> <span id="safety-text">Mistura Ideal</span>
           </div>
           <div id="cost-result" style="display: none; font-size: 0.9rem; margin-top: 8px; font-weight: 600; color: var(--success);">
             Custo total: R$ <span id="total-cost-val">0.00</span>
@@ -168,48 +175,59 @@
 
     <!-- Modais e Overlays -->
     <div id="help-modal" class="modal-overlay">
-       <!-- ... Mesma estrutura do manual anterior ... -->
       <div class="modal-content">
         <button class="modal-close" id="close-modal"><i data-lucide="x"></i></button>
         <div class="modal-body">
-          <h2>Guia Mix2T PRO</h2>
+          <h2 style="font-size: 1.5rem; margin-bottom: 5px;">Guia Mix2T PRO</h2>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">Manual Técnico e de Segurança</p>
           
           <div class="step">
             <div class="step-num">1</div>
             <div class="step-text">
-              <h3>Entenda as Proporções</h3>
-              <p>O número (ex: 50:1) indica quantas partes de gasolina para cada parte de óleo. 
-              <strong>50:1</strong> significa 20ml de óleo por litro de gasolina. 
-              <strong>25:1</strong> é uma mistura mais rica (40ml/L), usada para amaciar motores novos ou em condições extremas de calor.</p>
+              <h3>Combustível Ideal</h3>
+              <p>Use sempre <strong>Gasolina Comum</strong> nova. Gasolinas aditivadas podem conter solventes que reagem com certos óleos 2T, causando perda de lubrificação. Não use combustível com mais de 30 dias.</p>
             </div>
           </div>
 
           <div class="step">
             <div class="step-num">2</div>
             <div class="step-text">
-              <h3>Gasolina e Óleo</h3>
-              <p>Sempre prefira <strong>Gasolina Comum</strong>. A gasolina aditivada pode conter solventes que reagem com alguns óleos 2T. Use óleo de classificação <strong>JASO FD</strong> ou <strong>ISO-L-EGD</strong> para garantir menos fumaça e menos carbonização no motor.</p>
+              <h3>Classificação do Óleo</h3>
+              <p>Procure óleos com normas <strong>JASO FD</strong> ou <strong>ISO-L-EGD</strong>.
+              <br>• <strong>Mineral (25:1)</strong>: Mais fumaça, proteção básica.
+              <br>• <strong>Sintético (50:1)</strong>: Queima limpa, lubrificação superior.</p>
             </div>
           </div>
 
           <div class="step">
             <div class="step-num">3</div>
             <div class="step-text">
-              <h3>Regra de Ouro: Agite Sempre</h3>
-              <p>O óleo 2 tempos é mais denso que a gasolina e tende a decantar no fundo do galão ou do tanque. <strong>Sempre agite vigorosamente</strong> a mistura antes de abastecer, mesmo que tenha acabado de misturar.</p>
+              <h3>Amaciamento (Break-in)</h3>
+              <p>Para motores novos (primeiras 20h), alguns fabricantes recomendam usar uma mistura mais rica (ex: Stihl 8011 em 25:1) mesmo usando óleo sintético, para assentar os anéis do pistão.</p>
             </div>
           </div>
 
-          <div class="step">
-            <div class="step-num">4</div>
-            <div class="step-text">
-              <h3>Conservação da Mistura</h3>
-              <p>A mistura de gasolina e óleo 2T começa a perder suas propriedades após 15 a 30 dias. Tente preparar apenas o que vai usar no dia para evitar entupimentos no carburador e perda de potência.</p>
-            </div>
+          <div class="checklist">
+            <h3 style="font-size: 1rem; margin-bottom: 12px; color: var(--primary);">Checklist Pré-Partida</h3>
+            <label class="checklist-item">
+              <input type="checkbox"> <span>Mistura feita fora do tanque</span>
+            </label>
+            <label class="checklist-item">
+              <input type="checkbox"> <span>Galão de mistura bem agitado</span>
+            </label>
+            <label class="checklist-item">
+              <input type="checkbox"> <span>Filtro de ar limpo e seco</span>
+            </label>
+            <label class="checklist-item">
+              <input type="checkbox"> <span>Combustível com menos de 30 dias</span>
+            </label>
+            <label class="checklist-item">
+              <input type="checkbox"> <span>Vela de ignição limpa</span>
+            </label>
           </div>
 
-          <div style="background: rgba(var(--primary-hue), 100%, 50%, 0.1); padding: 15px; border-radius: 12px; font-size: 0.8rem; border: 1px dashed var(--primary); margin-top: 10px;">
-            <strong>Dica Pro:</strong> Use a aba <strong>Meus 2T</strong> para salvar seus equipamentos e carregar a proporção exata num clique, sem precisar lembrar de cabeça.
+          <div style="background: rgba(var(--primary-hue), 100%, 50%, 0.1); padding: 15px; border-radius: 12px; font-size: 0.8rem; border: 1px dashed var(--primary); margin-top: 20px;">
+            <strong>Nota de Segurança:</strong> Nunca abasteça com o motor quente ou em funcionamento. Risco de incêndio.
           </div>
         </div>
       </div>
@@ -219,7 +237,7 @@
     <div id="equip-modal" class="modal-overlay">
       <div class="modal-content" style="max-width: 350px;">
         <button class="modal-close" id="close-equip-modal"><i data-lucide="x"></i></button>
-        <h2>Novo Perfil</h2>
+        <h2 style="margin-bottom: 20px;">Novo Perfil</h2>
         <div class="input-group">
           <label>Nome (Ex: Roçadeira Stihl)</label>
           <input type="text" id="new-equip-name" placeholder="Nome do equipamento" />
