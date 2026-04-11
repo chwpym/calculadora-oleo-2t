@@ -253,13 +253,31 @@ select:focus {
 
 .search-container {
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-clear-btn {
+  position: absolute;
+  right: 60px; /* Entre o sufixo e o input */
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  opacity: 0.6;
+}
+
+.input-clear-btn:hover {
+  opacity: 1;
+  color: var(--danger);
 }
 
 .search-results {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
   background: var(--bg-card);
   backdrop-filter: var(--glass);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -587,27 +605,28 @@ select:focus {
   margin-top: 2px;
 }
 
-/* Alertas de Segurança */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  margin-top: 8px;
-  opacity: 0;
-  transition: var(--transition);
-}
-
 .status-badge.active {
   opacity: 1;
 }
 
-.status-safe { background: rgba(142, 212, 102, 0.1); color: var(--success); }
-.status-warning { background: rgba(255, 165, 0, 0.1); color: orange; }
-.status-unsafe { background: rgba(255, 57, 41, 0.1); color: var(--danger); }
+.status-safe { background: rgba(142, 212, 102, 0.15); color: var(--success); }
+.status-warning { background: rgba(255, 165, 0, 0.15); color: orange; }
+.status-unsafe { background: rgba(255, 57, 41, 0.15); color: var(--danger); }
+
+/* Melhorias no Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
 
 /* Checklist no Manual */
 .checklist {

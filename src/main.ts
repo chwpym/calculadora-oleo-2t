@@ -2,7 +2,7 @@ import './style.css';
 import { 
   createIcons, Fuel, Droplet, Moon, Sun, Search, HelpCircle, X, 
   Calculator, Cog, History, Plus, Save, Share2, Info, Trash2, Play,
-  AlertTriangle, AlertCircle
+  AlertTriangle, AlertCircle, ChevronRight, RotateCcw, Edit3, CheckCircle
 } from 'lucide';
 import { brands } from './data/brands';
 import { get, set } from 'idb-keyval';
@@ -15,6 +15,7 @@ interface MixRecord {
   oil: number;
   ratio: number;
   cost?: number;
+  equipmentName?: string;
 }
 
 interface Equipment {
@@ -24,7 +25,11 @@ interface Equipment {
 }
 
 // Inicializar ícones
-const icons = { Fuel, Droplet, Moon, Sun, Search, HelpCircle, X, Calculator, Cog, History, Plus, Save, Share2, Info, Trash2, Play, AlertTriangle, AlertCircle };
+const icons = { 
+  Fuel, Droplet, Moon, Sun, Search, HelpCircle, X, Calculator, Cog, History, 
+  Plus, Save, Share2, Info, Trash2, Play, AlertTriangle, AlertCircle, 
+  ChevronRight, RotateCcw, Edit3, CheckCircle 
+};
 createIcons({ icons });
 
 // Registro Manual do Service Worker
@@ -32,19 +37,20 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
-        console.log('SW pronto!', reg);
+        console.log('Mix2T: Service Worker registrado com sucesso!');
         reg.onupdatefound = () => {
           const newWorker = reg.installing;
           if (newWorker) {
             newWorker.onstatechange = () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('Mix2T: Nova versão disponível! Recarregando...');
                 window.location.reload();
               }
             };
           }
         };
       })
-      .catch(err => console.log('Erro no SW:', err));
+      .catch(err => console.error('Mix2T: Erro no SW:', err));
   });
 
   let refreshing = false;
@@ -56,90 +62,142 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-
 // --- ESTADO ---
 let currentRatio = 50;
 let isInverseMode = false;
 let isCostEnabled = false;
+let editingEquipId: number | null = null;
+let activeEquipName: string | null = null;
 
-// --- ELEMENTOS ---
+// --- ELEMENTOS (Safe Selection) ---
+const getEl = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+
 const app = document.body;
-const ratioSlider = document.getElementById('ratio-slider') as HTMLInputElement;
-const ratioDisplay = document.getElementById('ratio-display') as HTMLElement;
-const brandSearch = document.getElementById('brand-search') as HTMLInputElement;
-const searchResults = document.getElementById('search-results') as HTMLElement;
-const fuelInput = document.getElementById('fuel-input') as HTMLInputElement;
-const oilInput = document.getElementById('oil-input') as HTMLInputElement;
-const resultNum = document.getElementById('result-num') as HTMLElement;
-const resultUnit = document.getElementById('result-unit') as HTMLElement;
-const resultLabelText = document.getElementById('result-label-text') as HTMLElement;
-const brandIndicator = document.getElementById('brand-indicator') as HTMLElement;
-const costInputs = document.getElementById('cost-inputs') as HTMLElement;
-const priceFuelInput = document.getElementById('price-fuel') as HTMLInputElement;
-const priceOilInput = document.getElementById('price-oil') as HTMLInputElement;
-const costResult = document.getElementById('cost-result') as HTMLElement;
-const totalCostVal = document.getElementById('total-cost-val') as HTMLElement;
-const safetyBadge = document.getElementById('safety-badge') as HTMLElement;
-const safetyText = document.getElementById('safety-text') as HTMLElement;
+const ratioSlider = getEl<HTMLInputElement>('ratio-slider');
+const ratioDisplay = getEl<HTMLElement>('ratio-display');
+const brandSearch = getEl<HTMLInputElement>('brand-search');
+const fuelInput = getEl<HTMLInputElement>('fuel-input');
+const oilInput = getEl<HTMLInputElement>('oil-input');
+const resultNum = getEl<HTMLElement>('result-num');
+const resultUnit = getEl<HTMLElement>('result-unit');
+const resultLabelText = getEl<HTMLElement>('result-label-text');
+const brandIndicator = getEl<HTMLElement>('brand-indicator');
+const costInputs = getEl<HTMLElement>('cost-inputs');
+const priceFuelInput = getEl<HTMLInputElement>('price-fuel');
+const priceOilInput = getEl<HTMLInputElement>('price-oil');
+const costResult = getEl<HTMLElement>('cost-result');
+const totalCostVal = getEl<HTMLElement>('total-cost-val');
+const safetyBadge = getEl<HTMLElement>('safety-badge');
+const safetyText = getEl<HTMLElement>('safety-text');
 
 // Novos Elementos de Modo
-const modeDirect = document.getElementById('mode-direct') as HTMLButtonElement;
-const modeInverse = document.getElementById('mode-inverse') as HTMLButtonElement;
-const mainInputLabel = document.getElementById('main-input-label') as HTMLElement;
-const mainInputSuffix = document.getElementById('main-input-suffix') as HTMLElement;
-const shortcutsFuel = document.getElementById('shortcuts-fuel') as HTMLElement;
-const shortcutsOil = document.getElementById('shortcuts-oil') as HTMLElement;
+const modeDirect = getEl<HTMLButtonElement>('mode-direct');
+const modeInverse = getEl<HTMLButtonElement>('mode-inverse');
+const mainInputLabel = getEl<HTMLElement>('main-input-label');
+const mainInputSuffix = getEl<HTMLElement>('main-input-suffix');
+const shortcutsFuel = getEl<HTMLElement>('shortcuts-fuel');
+const shortcutsOil = getEl<HTMLElement>('shortcuts-oil');
+
+// Elementos de Modais
+const alertModal = getEl<HTMLElement>('alert-modal');
+const confirmModal = getEl<HTMLElement>('confirm-modal');
+const searchModal = getEl<HTMLElement>('search-modal');
+const equipModal = getEl<HTMLElement>('equip-modal');
+const modalTitle = getEl<HTMLElement>('equip-modal-title');
+const modalBrandSearch = getEl<HTMLInputElement>('modal-brand-search');
+const modalSearchResults = getEl<HTMLElement>('modal-search-results');
+
+// --- SISTEMA DE MODAIS CUSTOMIZADOS ---
+function showAlert(title: string, message: string, icon = 'info') {
+  const t = getEl<HTMLElement>('alert-title');
+  const m = getEl<HTMLElement>('alert-message');
+  const box = getEl<HTMLElement>('alert-icon');
+  if (t) t.textContent = title;
+  if (m) m.textContent = message;
+  if (box) box.innerHTML = `<i data-lucide="${icon}" style="width: 48px; height: 48px;"></i>`;
+  alertModal?.classList.add('active');
+  createIcons({ icons });
+}
+
+function showConfirm(title: string, message: string, onConfirm: () => void) {
+  const t = getEl<HTMLElement>('confirm-title');
+  const m = getEl<HTMLElement>('confirm-message');
+  if (t) t.textContent = title;
+  if (m) m.textContent = message;
+  confirmModal?.classList.add('active');
+  
+  const execBtn = getEl<HTMLButtonElement>('exec-confirm');
+  const cancelBtn = getEl<HTMLButtonElement>('cancel-confirm');
+  
+  const cleanUp = () => {
+    confirmModal?.classList.remove('active');
+    if (execBtn) execBtn.onclick = null;
+    if (cancelBtn) cancelBtn.onclick = null;
+  };
+
+  if (execBtn) execBtn.onclick = () => { onConfirm(); cleanUp(); };
+  if (cancelBtn) cancelBtn.onclick = cleanUp;
+}
+
+getEl<HTMLElement>('close-alert')?.addEventListener('click', () => alertModal?.classList.remove('active'));
 
 // --- LÓGICA DE MODO ---
 function setMode(mode: 'direct' | 'inverse') {
   isInverseMode = mode === 'inverse';
   
-  // Atualizar UI dos botões
-  modeDirect.classList.toggle('active', !isInverseMode);
-  modeInverse.classList.toggle('active', isInverseMode);
+  if (fuelInput) fuelInput.value = '';
+  if (oilInput) oilInput.value = '';
+  activeEquipName = null;
+  if (brandIndicator) {
+    brandIndicator.textContent = "Pronto para misturar";
+    brandIndicator.style.color = "var(--text-muted)";
+  }
   
-  // Trocar Labels e Inputs
+  modeDirect?.classList.toggle('active', !isInverseMode);
+  modeInverse?.classList.toggle('active', isInverseMode);
+  
   if (!isInverseMode) {
-    mainInputLabel.textContent = "Quantidade de Gasolina";
-    mainInputSuffix.textContent = "LITROS";
-    fuelInput.style.display = "block";
-    oilInput.style.display = "none";
-    shortcutsFuel.style.display = "flex";
-    shortcutsOil.style.display = "none";
-    resultLabelText.textContent = "ÓLEO NECESSÁRIO";
-    resultUnit.textContent = "ml";
+    if (mainInputLabel) mainInputLabel.textContent = "Quantidade de Gasolina";
+    if (mainInputSuffix) mainInputSuffix.textContent = "LITROS";
+    if (fuelInput) fuelInput.style.display = "block";
+    if (oilInput) oilInput.style.display = "none";
+    if (shortcutsFuel) shortcutsFuel.style.display = "flex";
+    if (shortcutsOil) shortcutsOil.style.display = "none";
+    if (resultLabelText) resultLabelText.textContent = "ÓLEO NECESSÁRIO";
+    if (resultUnit) resultUnit.textContent = "ml";
   } else {
-    mainInputLabel.textContent = "Quantidade de Óleo";
-    mainInputSuffix.textContent = "ML";
-    fuelInput.style.display = "none";
-    oilInput.style.display = "block";
-    shortcutsFuel.style.display = "none";
-    shortcutsOil.style.display = "flex";
-    resultLabelText.textContent = "GASOLINA NECESSÁRIA";
-    resultUnit.textContent = "L";
+    if (mainInputLabel) mainInputLabel.textContent = "Quantidade de Óleo";
+    if (mainInputSuffix) mainInputSuffix.textContent = "ML";
+    if (fuelInput) fuelInput.style.display = "none";
+    if (oilInput) oilInput.style.display = "block";
+    if (shortcutsFuel) shortcutsFuel.style.display = "none";
+    if (shortcutsOil) shortcutsOil.style.display = "flex";
+    if (resultLabelText) resultLabelText.textContent = "GASOLINA NECESSÁRIA";
+    if (resultUnit) resultUnit.textContent = "L";
   }
   
   calculate();
 }
 
-modeDirect.onclick = () => setMode('direct');
-modeInverse.onclick = () => setMode('inverse');
+modeDirect?.addEventListener('click', () => setMode('direct'));
+modeInverse?.addEventListener('click', () => setMode('inverse'));
 
 // --- CÁLCULO CORE ---
 function calculate() {
+  if (!ratioSlider || !resultNum || !resultUnit) return;
+
   const ratio = parseInt(ratioSlider.value);
   currentRatio = ratio;
-  ratioDisplay.textContent = `${ratio}:1`;
+  if (ratioDisplay) ratioDisplay.textContent = `${ratio}:1`;
   
   updateSafetyBadge(ratio);
 
   let totalCost = 0;
 
   if (!isInverseMode) {
-    const fuel = parseFloat(fuelInput.value) || 0;
+    const fuel = parseFloat(fuelInput?.value.replace(',', '.') || '0') || 0;
     const oilNeeded = (fuel * 1000) / ratio;
     
-    // Formatação inteligente
     if (oilNeeded >= 1000) {
       resultNum.textContent = (oilNeeded / 1000).toFixed(2);
       resultUnit.textContent = "L";
@@ -149,34 +207,35 @@ function calculate() {
     }
     
     if (isCostEnabled) {
-      const pF = parseFloat(priceFuelInput.value) || 0;
-      const pO = parseFloat(priceOilInput.value) || 0;
+      const pF = parseFloat(priceFuelInput?.value.replace(',', '.') || '0') || 0;
+      const pO = parseFloat(priceOilInput?.value.replace(',', '.') || '0') || 0;
       totalCost = (fuel * pF) + ((oilNeeded / 1000) * pO);
     }
   } else {
-    const oil = parseFloat(oilInput.value) || 0;
+    const oil = parseFloat(oilInput?.value.replace(',', '.') || '0') || 0;
     const fuelNeeded = (oil * ratio) / 1000;
     resultNum.textContent = fuelNeeded.toFixed(2);
     resultUnit.textContent = "L";
     
     if (isCostEnabled) {
-      const pF = parseFloat(priceFuelInput.value) || 0;
-      const pO = parseFloat(priceOilInput.value) || 0;
+      const pF = parseFloat(priceFuelInput?.value.replace(',', '.') || '0') || 0;
+      const pO = parseFloat(priceOilInput?.value.replace(',', '.') || '0') || 0;
       totalCost = (fuelNeeded * pF) + ((oil / 1000) * pO);
     }
   }
 
   if (isCostEnabled && totalCost > 0) {
-    costResult.style.display = 'block';
-    totalCostVal.textContent = totalCost.toFixed(2);
+    if (costResult) costResult.style.display = 'block';
+    if (totalCostVal) totalCostVal.textContent = totalCost.toFixed(2);
   } else {
-    costResult.style.display = 'none';
+    if (costResult) costResult.style.display = 'none';
   }
 }
 
 function updateSafetyBadge(ratio: number) {
+  if (!safetyBadge || !safetyText) return;
   safetyBadge.classList.add('active');
-  safetyBadge.className = 'status-badge active'; // Reset classes
+  safetyBadge.className = 'status-badge active';
   
   if (ratio >= 25 && ratio <= 50) {
     safetyBadge.classList.add('status-safe');
@@ -204,7 +263,9 @@ async function saveHistory(record: MixRecord) {
 
 async function renderHistory() {
   const history = (await get('mix_history')) || [];
-  const list = document.getElementById('history-list')!;
+  const list = getEl<HTMLElement>('history-list');
+  if (!list) return;
+
   list.innerHTML = history.length ? '' : '<div class="empty-state">Seu histórico está vazio</div>';
   
   history.forEach((h: MixRecord) => {
@@ -212,8 +273,8 @@ async function renderHistory() {
     div.className = 'list-item';
     div.innerHTML = `
       <div class="item-info">
-        <h4>${h.fuel}L @ ${h.ratio}:1</h4>
-        <p>${new Date(h.date).toLocaleDateString()} • ${h.oil}ml óleo</p>
+        <h4>${h.equipmentName ? h.equipmentName : (h.fuel + 'L @ ' + h.ratio + ':1')}</h4>
+        <p>${new Date(h.date).toLocaleDateString()} • ${h.oil}ml óleo ${h.equipmentName ? '('+h.ratio+':1)' : ''}</p>
       </div>
       <div style="font-weight: 700; color: var(--primary)">${h.cost ? 'R$ '+h.cost : ''}</div>
     `;
@@ -222,15 +283,22 @@ async function renderHistory() {
 }
 
 async function saveEquipment(equip: Equipment) {
-  const equips = (await get('user_equip')) || [];
-  equips.push(equip);
+  let equips = (await get('user_equip')) || [];
+  if (editingEquipId) {
+    equips = equips.map((e: Equipment) => e.id === editingEquipId ? equip : e);
+  } else {
+    equips.push(equip);
+  }
   await set('user_equip', equips);
+  editingEquipId = null;
   renderEquipments();
 }
 
 async function renderEquipments() {
   const equips = (await get('user_equip')) || [];
-  const list = document.getElementById('equip-list')!;
+  const list = getEl<HTMLElement>('equip-list');
+  if (!list) return;
+
   list.innerHTML = equips.length ? '' : '<div class="empty-state">Nenhum equipamento salvo</div>';
   
   equips.forEach((e: Equipment) => {
@@ -242,21 +310,39 @@ async function renderEquipments() {
         <p>Proporção ${e.ratio}:1</p>
       </div>
       <div style="display: flex; gap: 8px;">
-        <button class="header-btn use-equip" data-ratio="${e.ratio}" style="background: var(--primary); color: #000;"><i data-lucide="play" style="width: 14px;"></i></button>
+        <button class="header-btn use-equip" data-name="${e.name}" data-ratio="${e.ratio}" style="background: var(--primary); color: #000;"><i data-lucide="play" style="width: 14px;"></i></button>
+        <button class="header-btn edit-equip" data-id="${e.id}" style="color: var(--text-muted);"><i data-lucide="edit-3" style="width: 14px;"></i></button>
         <button class="header-btn delete-equip" data-id="${e.id}" style="color: var(--danger);"><i data-lucide="trash-2" style="width: 14px;"></i></button>
       </div>
     `;
     
     div.querySelector('.use-equip')?.addEventListener('click', () => {
-      ratioSlider.value = e.ratio.toString();
+      if (ratioSlider) ratioSlider.value = e.ratio.toString();
+      activeEquipName = e.name;
+      if (brandIndicator) {
+        brandIndicator.textContent = `Perfil: ${e.name}`;
+        brandIndicator.style.color = 'var(--primary)';
+      }
       calculate();
       switchTab('view-calc');
     });
 
-    div.querySelector('.delete-equip')?.addEventListener('click', async () => {
-      const filtered = equips.filter((item: Equipment) => item.id !== e.id);
-      await set('user_equip', filtered);
-      renderEquipments();
+    div.querySelector('.edit-equip')?.addEventListener('click', () => {
+      editingEquipId = e.id;
+      if (modalTitle) modalTitle.textContent = "Editar Perfil";
+      const nameIn = getEl<HTMLInputElement>('new-equip-name');
+      const ratioIn = getEl<HTMLInputElement>('new-equip-ratio');
+      if (nameIn) nameIn.value = e.name;
+      if (ratioIn) ratioIn.value = e.ratio.toString();
+      equipModal?.classList.add('active');
+    });
+
+    div.querySelector('.delete-equip')?.addEventListener('click', () => {
+      showConfirm("Excluir?", `Deseja remover ${e.name}?`, async () => {
+        const filtered = equips.filter((item: Equipment) => item.id !== e.id);
+        await set('user_equip', filtered);
+        renderEquipments();
+      });
     });
 
     list.appendChild(div);
@@ -272,114 +358,184 @@ function switchTab(tabId: string) {
   if (tabId === 'view-equip') renderEquipments();
 }
 
-// Event Listeners
+// Busca Avançada no Modal
+brandSearch?.addEventListener('click', () => {
+  searchModal?.classList.add('active');
+  modalBrandSearch?.focus();
+});
+
+modalBrandSearch?.addEventListener('input', (e) => {
+  const term = (e.target as HTMLInputElement).value.toLowerCase();
+  const filtered = brands.filter(b => b.name.toLowerCase().includes(term) || b.model?.toLowerCase().includes(term));
+  
+  if (modalSearchResults) {
+    modalSearchResults.innerHTML = '';
+    if (term && term.length > 1 && filtered.length) {
+      filtered.forEach(b => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.style.cursor = 'pointer';
+        item.innerHTML = `
+          <div class="item-info">
+            <h4>${b.name}</h4>
+            <p>${b.model || ''} (${b.ratio}:1)</p>
+          </div>
+          <i data-lucide="chevron-right" style="color: var(--primary)"></i>
+        `;
+        item.onclick = () => {
+          if (ratioSlider) ratioSlider.value = b.ratio.toString();
+          activeEquipName = b.name;
+          if (brandIndicator) {
+            brandIndicator.textContent = `Perfil: ${b.name}`;
+            brandIndicator.style.color = 'var(--primary)';
+          }
+          searchModal?.classList.remove('active');
+          calculate();
+          if (modalBrandSearch) modalBrandSearch.value = '';
+        };
+        modalSearchResults.appendChild(item);
+      });
+      createIcons({ icons });
+    } else if (term.length > 1) {
+      modalSearchResults.innerHTML = '<div class="empty-state">Nenhum resultado encontrado</div>';
+    }
+  }
+});
+
+getEl<HTMLElement>('close-search-modal')?.addEventListener('click', () => searchModal?.classList.remove('active'));
+
+// Event Listeners Globais
 document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab') || 'view-calc')));
 
 document.querySelectorAll('.vol-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const val = btn.getAttribute('data-val');
     if (!isInverseMode) {
-      fuelInput.value = val || '';
+      if (fuelInput) fuelInput.value = val || '';
     } else {
-      oilInput.value = val || '';
+      if (oilInput) oilInput.value = val || '';
     }
     calculate();
   });
 });
 
-// Busca Marcas
-brandSearch.addEventListener('input', (e) => {
-  const term = (e.target as HTMLInputElement).value.toLowerCase();
-  const filtered = brands.filter(b => b.name.toLowerCase().includes(term) || b.model?.toLowerCase().includes(term));
-  
-  searchResults.innerHTML = '';
-  if (term && term.length > 1 && filtered.length) {
-    filtered.forEach(b => {
-      const item = document.createElement('div');
-      item.className = 'search-item';
-      item.innerHTML = `<strong>${b.name}</strong> <small>(${b.ratio}:1)</small>`;
-      item.onclick = () => {
-        ratioSlider.value = b.ratio.toString();
-        brandIndicator.textContent = `Perfil: ${b.name}`;
-        brandIndicator.style.color = 'var(--primary)';
-        brandSearch.value = '';
-        searchResults.classList.remove('active');
-        calculate();
-      };
-      searchResults.appendChild(item);
-    });
-    searchResults.classList.add('active');
-  } else {
-    searchResults.classList.remove('active');
+getEl<HTMLElement>('clear-inputs')?.addEventListener('click', () => {
+  if (fuelInput) fuelInput.value = '';
+  if (oilInput) oilInput.value = '';
+  activeEquipName = null;
+  if (brandIndicator) {
+    brandIndicator.textContent = 'Pronto para misturar';
+    brandIndicator.style.color = 'var(--text-muted)';
   }
+  calculate();
 });
 
 // Tema e Modais
-document.getElementById('theme-toggle')?.addEventListener('click', () => {
-  const isDark = app.getAttribute('data-theme') === 'dark';
+getEl<HTMLElement>('theme-toggle')?.addEventListener('click', () => {
+  const currentTheme = app.getAttribute('data-theme');
+  const isDark = currentTheme === 'dark';
   app.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  const icon = document.getElementById('theme-icon');
+  const icon = getEl<HTMLElement>('theme-icon');
   icon?.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
   createIcons({ icons });
 });
 
-document.getElementById('help-btn')?.addEventListener('click', () => (document.getElementById('help-modal') as HTMLElement).classList.add('active'));
-document.getElementById('close-modal')?.addEventListener('click', () => (document.getElementById('help-modal') as HTMLElement).classList.remove('active'));
-document.getElementById('add-equip-btn')?.addEventListener('click', () => (document.getElementById('equip-modal') as HTMLElement).classList.add('active'));
-document.getElementById('close-equip-modal')?.addEventListener('click', () => (document.getElementById('equip-modal') as HTMLElement).classList.remove('active'));
+getEl<HTMLElement>('help-btn')?.addEventListener('click', () => getEl<HTMLElement>('help-modal')?.classList.add('active'));
+getEl<HTMLElement>('close-modal')?.addEventListener('click', () => getEl<HTMLElement>('help-modal')?.classList.remove('active'));
+getEl<HTMLElement>('add-equip-btn')?.addEventListener('click', () => {
+  editingEquipId = null;
+  if (modalTitle) modalTitle.textContent = "Novo Perfil";
+  const nameIn = getEl<HTMLInputElement>('new-equip-name');
+  if (nameIn) nameIn.value = '';
+  equipModal?.classList.add('active');
+});
+getEl<HTMLElement>('close-equip-modal')?.addEventListener('click', () => equipModal?.classList.remove('active'));
 
-document.getElementById('toggle-costs')?.addEventListener('click', () => {
+getEl<HTMLElement>('toggle-costs')?.addEventListener('click', () => {
   isCostEnabled = !isCostEnabled;
-  costInputs.style.display = isCostEnabled ? 'flex' : 'none';
+  if (costInputs) costInputs.style.display = isCostEnabled ? 'flex' : 'none';
   calculate();
 });
 
-document.getElementById('save-new-equip')?.addEventListener('click', () => {
-  const name = (document.getElementById('new-equip-name') as HTMLInputElement).value;
-  const ratio = parseInt((document.getElementById('new-equip-ratio') as HTMLInputElement).value);
+getEl<HTMLElement>('save-new-equip')?.addEventListener('click', () => {
+  const name = (getEl<HTMLInputElement>('new-equip-name'))?.value;
+  const ratioStr = (getEl<HTMLInputElement>('new-equip-ratio'))?.value;
+  const ratio = parseInt(ratioStr || '50');
   if (name && ratio) {
-    saveEquipment({ id: Date.now(), name, ratio });
-    (document.getElementById('equip-modal') as HTMLElement).classList.remove('active');
-    (document.getElementById('new-equip-name') as HTMLInputElement).value = '';
+    saveEquipment({ id: editingEquipId || Date.now(), name, ratio });
+    equipModal?.classList.remove('active');
+    showAlert("Sucesso", editingEquipId ? "Perfil atualizado!" : "Equipamento salvo!", "check-circle");
   }
 });
 
-document.getElementById('save-mix')?.addEventListener('click', () => {
-  const fuel = parseFloat(fuelInput.value) || 0;
-  if (fuel <= 0 && !isInverseMode) return;
+getEl<HTMLElement>('save-mix')?.addEventListener('click', () => {
+  console.log('Mix2T: Solicitando salvamento...');
   
-  const oilLabel = resultNum.textContent || '0';
-  const oil = resultUnit.textContent === 'L' ? parseFloat(oilLabel) * 1000 : parseFloat(oilLabel);
+  const fuel = parseFloat(fuelInput?.value.replace(',', '.') || '0') || 0;
+  const resultNumVal = parseFloat(resultNum?.textContent || '0') || 0;
+  
+  // No modo direto, precisamos de gasolina. No inverso, o resultado deve ser > 0.
+  if (!isInverseMode && fuel <= 0) {
+    showAlert("Opa!", "Insira a quantidade de gasolina primeiro.", "alert-triangle");
+    return;
+  }
+  if (resultNumVal <= 0) {
+    showAlert("Opa!", "O cálculo resultou em zero. Verifique os valores.", "alert-triangle");
+    return;
+  }
+  
+  const oilLabel = resultNum?.textContent || '0';
+  const oil = resultUnit?.textContent === 'L' ? parseFloat(oilLabel) * 1000 : parseFloat(oilLabel);
   
   saveHistory({
     id: Date.now(),
     date: new Date().toISOString(),
-    fuel: isInverseMode ? parseFloat(resultNum.textContent || '0') : fuel,
+    fuel: isInverseMode ? resultNumVal : fuel,
     oil,
     ratio: currentRatio,
-    cost: isCostEnabled ? parseFloat(totalCostVal.textContent || '0') : undefined
+    cost: isCostEnabled ? parseFloat(totalCostVal?.textContent || '0') : undefined,
+    equipmentName: activeEquipName || undefined
   });
-  alert('Mistura salva!');
+  
+  showAlert("Salvo", "Mistura registrada no histórico!", "check-circle");
 });
 
-document.getElementById('share-btn')?.addEventListener('click', () => {
-  const msg = `Mix2T Calc: Mistura de ${resultNum.textContent}${resultUnit.textContent} em ${isInverseMode ? oilInput.value+'ml de óleo' : fuelInput.value+'L de gasolina'} (${currentRatio}:1).`;
+getEl<HTMLElement>('clear-history')?.addEventListener('click', () => {
+  showConfirm("Limpar Histórico?", "Tem certeza que deseja apagar todos os registros?", async () => {
+    await set('mix_history', []);
+    renderHistory();
+  });
+});
+
+getEl<HTMLElement>('share-btn')?.addEventListener('click', () => {
+  const msg = `Mix2T Calc: Mistura de ${resultNum?.textContent}${resultUnit?.textContent} em ${isInverseMode ? oilInput?.value+'ml de óleo' : fuelInput?.value+'L de gasolina'} (${currentRatio}:1).`;
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`);
 });
 
-// Listener Global de Inputs
 [fuelInput, oilInput, ratioSlider, priceFuelInput, priceOilInput].forEach(el => {
-  el.addEventListener('input', () => {
-    if (el === ratioSlider) ratioDisplay.textContent = `${ratioSlider.value}:1`;
+  el?.addEventListener('input', () => {
+    if (el === ratioSlider) {
+      if (ratioDisplay) ratioDisplay.textContent = `${ratioSlider.value}:1`;
+      activeEquipName = null;
+      if (brandIndicator) {
+        brandIndicator.textContent = "Ajuste Manual";
+        brandIndicator.style.color = "var(--text-muted)";
+      }
+    }
     calculate();
   });
 });
 
 document.querySelectorAll('.brand-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    ratioSlider.value = btn.getAttribute('data-ratio') || '50';
+    const ratio = btn.getAttribute('data-ratio') || '50';
+    if (ratioSlider) ratioSlider.value = ratio;
     document.querySelectorAll('.brand-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    activeEquipName = null;
+    if (brandIndicator) {
+      brandIndicator.textContent = "Proporção Custom";
+    }
     calculate();
   });
 });

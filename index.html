@@ -12,8 +12,7 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0f172a" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <!-- Forçar carregamento do CSS -->
-    <link rel="stylesheet" href="./src/style.css" />
+
   </head>
   <body data-theme="dark">
     <div id="app" class="app-container">
@@ -71,6 +70,7 @@
             <div class="input-wrapper">
               <input type="number" id="fuel-input" inputmode="decimal" placeholder="Ex: 1" step="0.1" />
               <input type="number" id="oil-input" inputmode="decimal" style="display: none;" placeholder="Ex: 20" />
+              <button id="clear-inputs" class="input-clear-btn" aria-label="Limpar"><i data-lucide="rotate-ccw"></i></button>
               <span id="main-input-suffix" class="input-suffix">LITROS</span>
             </div>
           </div>
@@ -235,11 +235,11 @@
       </div>
     </div>
 
-    <!-- Modal Novo Equipamento -->
+    <!-- Modal Novo/Edição Equipamento -->
     <div id="equip-modal" class="modal-overlay">
       <div class="modal-content" style="max-width: 350px;">
         <button class="modal-close" id="close-equip-modal"><i data-lucide="x"></i></button>
-        <h2 style="margin-bottom: 20px;">Novo Perfil</h2>
+        <h2 id="equip-modal-title" style="margin-bottom: 20px;">Novo Perfil</h2>
         <div class="input-group">
           <label>Nome (Ex: Roçadeira Stihl)</label>
           <input type="text" id="new-equip-name" placeholder="Nome do equipamento" />
@@ -249,6 +249,48 @@
           <input type="number" id="new-equip-ratio" value="50" />
         </div>
         <button id="save-new-equip" class="action-btn" style="width: 100%; margin-top: 20px;">Salvar Equipamento</button>
+      </div>
+    </div>
+
+    <!-- Modal de Alerta Customizado -->
+    <div id="alert-modal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 320px; text-align: center;">
+        <div id="alert-icon" style="margin-bottom: 15px; color: var(--primary);">
+          <i data-lucide="info" style="width: 48px; height: 48px;"></i>
+        </div>
+        <h2 id="alert-title" style="margin-bottom: 10px; font-size: 1.25rem;">Aviso</h2>
+        <p id="alert-message" style="margin-bottom: 25px; font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;"></p>
+        <button id="close-alert" class="action-btn" style="width: 100%;">Entendi</button>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação Customizado -->
+    <div id="confirm-modal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 320px; text-align: center;">
+        <div style="margin-bottom: 15px; color: var(--danger);">
+          <i data-lucide="alert-triangle" style="width: 48px; height: 48px;"></i>
+        </div>
+        <h2 id="confirm-title" style="margin-bottom: 10px; font-size: 1.25rem;">Confirmar?</h2>
+        <p id="confirm-message" style="margin-bottom: 25px; font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;"></p>
+        <div style="display: flex; gap: 10px;">
+          <button id="cancel-confirm" class="action-btn" style="flex: 1; background: var(--bg-card); color: var(--text-main); border: 1px solid rgba(255,255,255,0.1);">Cancelar</button>
+          <button id="exec-confirm" class="action-btn" style="flex: 1; background: var(--danger); color: #fff;">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Busca Avançada -->
+    <div id="search-modal" class="modal-overlay">
+      <div class="modal-content" style="max-height: 90vh;">
+        <button class="modal-close" id="close-search-modal"><i data-lucide="x"></i></button>
+        <h2 style="margin-bottom: 20px;">Buscar Marca/Modelo</h2>
+        <div class="input-wrapper" style="margin-bottom: 20px;">
+          <input type="text" id="modal-brand-search" placeholder="Ex: Stihl, Husqvarna..." autocomplete="off" />
+          <i data-lucide="search" style="position: absolute; right: 16px; color: var(--text-muted); width: 20px;"></i>
+        </div>
+        <div id="modal-search-results" class="list-container" style="max-height: 60vh; overflow-y: auto;">
+          <!-- Resultados aqui -->
+        </div>
       </div>
     </div>
 

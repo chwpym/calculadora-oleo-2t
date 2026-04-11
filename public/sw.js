@@ -1,13 +1,12 @@
-const CACHE_NAME = 'mix2t-pro-v2';
-const ASSETS = [
+const CACHE_NAME = 'mix2t-pro-v3';
+const PRE_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
-  '/src/style.css',
-  '/src/main.ts'
+  '/apple-touch-icon.png'
 ];
 
 // Install Event
@@ -15,7 +14,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      return cache.addAll(PRE_CACHE);
     })
   );
 });
@@ -36,16 +35,32 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event
 self.addEventListener('fetch', (event) => {
+  // Estratégia: Network First para o HTML, Cache First para o resto
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+      return response || fetch(event.request).then(fetchRes => {
+        return caches.open(CACHE_NAME).then(cache => {
+          // Não cachear extensões ou APIs externas se necessário, 
+          // mas para assets do Vite (JS/CSS) é ótimo.
+          if (event.request.url.includes('/assets/')) {
+            cache.put(event.request, fetchRes.clone());
+          }
+          return fetchRes;
+        });
+      });
     })
   );
 });
