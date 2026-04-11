@@ -68,6 +68,11 @@ let isInverseMode = false;
 let isCostEnabled = false;
 let editingEquipId: number | null = null;
 let activeEquipName: string | null = null;
+let pendingHistorySave = false;
+
+// Estado de Filtro de Histórico
+let historySearchTerm = '';
+let historySortBy = 'date'; // 'date', 'name', 'ratio'
 
 // --- ELEMENTOS (Safe Selection) ---
 const getEl = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
@@ -107,6 +112,13 @@ const modalTitle = getEl<HTMLElement>('equip-modal-title');
 const modalBrandSearch = getEl<HTMLInputElement>('modal-brand-search');
 const modalSearchResults = getEl<HTMLElement>('modal-search-results');
 
+const execConfirmBtn = getEl<HTMLButtonElement>('exec-confirm');
+const cancelConfirmBtn = getEl<HTMLButtonElement>('cancel-confirm');
+
+// Elementos de Histórico (Novos)
+const historySearchInput = getEl<HTMLInputElement>('history-search');
+const historySortSelect = getEl<HTMLSelectElement>('history-sort');
+
 // --- SISTEMA DE MODAIS CUSTOMIZADOS ---
 function showAlert(title: string, message: string, icon = 'info') {
   const t = getEl<HTMLElement>('alert-title');
@@ -119,27 +131,60 @@ function showAlert(title: string, message: string, icon = 'info') {
   createIcons({ icons });
 }
 
-function showConfirm(title: string, message: string, onConfirm: () => void) {
+function showConfirm(options: { 
+  title: string, 
+  message: string, 
+  confirmText?: string, 
+  cancelText?: string, 
+  onConfirm: () => void,
+  onCancel?: () => void 
+}) {
   const t = getEl<HTMLElement>('confirm-title');
   const m = getEl<HTMLElement>('confirm-message');
-  if (t) t.textContent = title;
-  if (m) m.textContent = message;
-  confirmModal?.classList.add('active');
+  if (t) t.textContent = options.title;
+  if (m) m.textContent = options.message;
   
-  const execBtn = getEl<HTMLButtonElement>('exec-confirm');
-  const cancelBtn = getEl<HTMLButtonElement>('cancel-confirm');
+  if (execConfirmBtn) execConfirmBtn.textContent = options.confirmText || "Confirmar";
+  if (cancelConfirmBtn) cancelConfirmBtn.textContent = options.cancelText || "Cancelar";
+  
+  confirmModal?.classList.add('active');
   
   const cleanUp = () => {
     confirmModal?.classList.remove('active');
-    if (execBtn) execBtn.onclick = null;
-    if (cancelBtn) cancelBtn.onclick = null;
+    if (execConfirmBtn) execConfirmBtn.onclick = null;
+    if (cancelConfirmBtn) cancelConfirmBtn.onclick = null;
   };
 
-  if (execBtn) execBtn.onclick = () => { onConfirm(); cleanUp(); };
-  if (cancelBtn) cancelBtn.onclick = cleanUp;
+  if (execConfirmBtn) execConfirmBtn.onclick = () => { options.onConfirm(); cleanUp(); };
+  if (cancelConfirmBtn) cancelConfirmBtn.onclick = () => { if (options.onCancel) options.onCancel(); cleanUp(); };
 }
 
 getEl<HTMLElement>('close-alert')?.addEventListener('click', () => alertModal?.classList.remove('active'));
+
+// --- SINCRONIZAÇÃO DE UI ---
+function updateRatioUI(ratio: number, name: string | null = null) {
+  if (ratioSlider) ratioSlider.value = ratio.toString();
+  if (ratioDisplay) ratioDisplay.textContent = `${ratio}:1`;
+  
+  // Destacar botão de atalho correspondente
+  document.querySelectorAll('.brand-btn').forEach(btn => {
+    const btnRatio = btn.getAttribute('data-ratio');
+    btn.classList.toggle('active', btnRatio === ratio.toString());
+  });
+
+  activeEquipName = name;
+  if (brandIndicator) {
+    if (name) {
+      brandIndicator.textContent = `Perfil: ${name}`;
+      brandIndicator.style.color = 'var(--primary)';
+    } else {
+      brandIndicator.textContent = "Ajuste Manual";
+      brandIndicator.style.color = "var(--text-muted)";
+    }
+  }
+  
+  calculate();
+}
 
 // --- LÓGICA DE MODO ---
 function setMode(mode: 'direct' | 'inverse') {
@@ -257,16 +302,39 @@ function updateSafetyBadge(ratio: number) {
 async function saveHistory(record: MixRecord) {
   const history = (await get('mix_history')) || [];
   history.unshift(record);
-  await set('mix_history', history.slice(0, 20));
+  await set('mix_history', history);
   renderHistory();
 }
 
 async function renderHistory() {
-  const history = (await get('mix_history')) || [];
+  let history = (await get('mix_history')) || [];
   const list = getEl<HTMLElement>('history-list');
   if (!list) return;
 
-  list.innerHTML = history.length ? '' : '<div class="empty-state">Seu histórico está vazio</div>';
+  // Filtro
+  const term = historySearchTerm.toLowerCase();
+  if (term) {
+    history = history.filter((h: MixRecord) => 
+      (h.equipmentName?.toLowerCase().includes(term)) ||
+      (h.ratio.toString().includes(term)) ||
+      (h.fuel.toString().includes(term)) ||
+      (h.oil.toString().includes(term))
+    );
+  }
+
+  // Ordenação
+  history.sort((a: MixRecord, b: MixRecord) => {
+    if (historySortBy === 'date') return b.id - a.id;
+    if (historySortBy === 'name') {
+      const nameA = a.equipmentName || "Personalizado";
+      const nameB = b.equipmentName || "Personalizado";
+      return nameA.localeCompare(nameB);
+    }
+    if (historySortBy === 'ratio') return a.ratio - b.ratio;
+    return 0;
+  });
+
+  list.innerHTML = history.length ? '' : '<div class="empty-state">Nenhum registro encontrado</div>';
   
   history.forEach((h: MixRecord) => {
     const div = document.createElement('div');
@@ -317,13 +385,7 @@ async function renderEquipments() {
     `;
     
     div.querySelector('.use-equip')?.addEventListener('click', () => {
-      if (ratioSlider) ratioSlider.value = e.ratio.toString();
-      activeEquipName = e.name;
-      if (brandIndicator) {
-        brandIndicator.textContent = `Perfil: ${e.name}`;
-        brandIndicator.style.color = 'var(--primary)';
-      }
-      calculate();
+      updateRatioUI(e.ratio, e.name);
       switchTab('view-calc');
     });
 
@@ -338,10 +400,15 @@ async function renderEquipments() {
     });
 
     div.querySelector('.delete-equip')?.addEventListener('click', () => {
-      showConfirm("Excluir?", `Deseja remover ${e.name}?`, async () => {
-        const filtered = equips.filter((item: Equipment) => item.id !== e.id);
-        await set('user_equip', filtered);
-        renderEquipments();
+      showConfirm({
+        title: "Excluir?",
+        message: `Deseja remover ${e.name}?`,
+        confirmText: "Sim, Excluir",
+        onConfirm: async () => {
+          const filtered = equips.filter((item: Equipment) => item.id !== e.id);
+          await set('user_equip', filtered);
+          renderEquipments();
+        }
       });
     });
 
@@ -383,14 +450,8 @@ modalBrandSearch?.addEventListener('input', (e) => {
           <i data-lucide="chevron-right" style="color: var(--primary)"></i>
         `;
         item.onclick = () => {
-          if (ratioSlider) ratioSlider.value = b.ratio.toString();
-          activeEquipName = b.name;
-          if (brandIndicator) {
-            brandIndicator.textContent = `Perfil: ${b.name}`;
-            brandIndicator.style.color = 'var(--primary)';
-          }
+          updateRatioUI(b.ratio, b.name);
           searchModal?.classList.remove('active');
-          calculate();
           if (modalBrandSearch) modalBrandSearch.value = '';
         };
         modalSearchResults.appendChild(item);
@@ -442,14 +503,22 @@ getEl<HTMLElement>('theme-toggle')?.addEventListener('click', () => {
 
 getEl<HTMLElement>('help-btn')?.addEventListener('click', () => getEl<HTMLElement>('help-modal')?.classList.add('active'));
 getEl<HTMLElement>('close-modal')?.addEventListener('click', () => getEl<HTMLElement>('help-modal')?.classList.remove('active'));
-getEl<HTMLElement>('add-equip-btn')?.addEventListener('click', () => {
+
+const openEquipModal = (ratio?: number) => {
   editingEquipId = null;
   if (modalTitle) modalTitle.textContent = "Novo Perfil";
   const nameIn = getEl<HTMLInputElement>('new-equip-name');
+  const ratioIn = getEl<HTMLInputElement>('new-equip-ratio');
   if (nameIn) nameIn.value = '';
+  if (ratio && ratioIn) ratioIn.value = ratio.toString();
   equipModal?.classList.add('active');
+};
+
+getEl<HTMLElement>('add-equip-btn')?.addEventListener('click', () => openEquipModal());
+getEl<HTMLElement>('close-equip-modal')?.addEventListener('click', () => {
+  equipModal?.classList.remove('active');
+  pendingHistorySave = false;
 });
-getEl<HTMLElement>('close-equip-modal')?.addEventListener('click', () => equipModal?.classList.remove('active'));
 
 getEl<HTMLElement>('toggle-costs')?.addEventListener('click', () => {
   isCostEnabled = !isCostEnabled;
@@ -461,28 +530,24 @@ getEl<HTMLElement>('save-new-equip')?.addEventListener('click', () => {
   const name = (getEl<HTMLInputElement>('new-equip-name'))?.value;
   const ratioStr = (getEl<HTMLInputElement>('new-equip-ratio'))?.value;
   const ratio = parseInt(ratioStr || '50');
+  
   if (name && ratio) {
     saveEquipment({ id: editingEquipId || Date.now(), name, ratio });
     equipModal?.classList.remove('active');
-    showAlert("Sucesso", editingEquipId ? "Perfil atualizado!" : "Equipamento salvo!", "check-circle");
+    
+    if (pendingHistorySave) {
+      activeEquipName = name;
+      executeHistorySave();
+      pendingHistorySave = false;
+    } else {
+      showAlert("Sucesso", editingEquipId ? "Perfil atualizado!" : "Equipamento salvo!", "check-circle");
+    }
   }
 });
 
-getEl<HTMLElement>('save-mix')?.addEventListener('click', () => {
-  console.log('Mix2T: Solicitando salvamento...');
-  
+function executeHistorySave() {
   const fuel = parseFloat(fuelInput?.value.replace(',', '.') || '0') || 0;
   const resultNumVal = parseFloat(resultNum?.textContent || '0') || 0;
-  
-  // No modo direto, precisamos de gasolina. No inverso, o resultado deve ser > 0.
-  if (!isInverseMode && fuel <= 0) {
-    showAlert("Opa!", "Insira a quantidade de gasolina primeiro.", "alert-triangle");
-    return;
-  }
-  if (resultNumVal <= 0) {
-    showAlert("Opa!", "O cálculo resultou em zero. Verifique os valores.", "alert-triangle");
-    return;
-  }
   
   const oilLabel = resultNum?.textContent || '0';
   const oil = resultUnit?.textContent === 'L' ? parseFloat(oilLabel) * 1000 : parseFloat(oilLabel);
@@ -498,18 +563,67 @@ getEl<HTMLElement>('save-mix')?.addEventListener('click', () => {
   });
   
   showAlert("Salvo", "Mistura registrada no histórico!", "check-circle");
+}
+
+getEl<HTMLElement>('save-mix')?.addEventListener('click', () => {
+  const fuel = parseFloat(fuelInput?.value.replace(',', '.') || '0') || 0;
+  const resultNumVal = parseFloat(resultNum?.textContent || '0') || 0;
+  
+  if (!isInverseMode && fuel <= 0) {
+    showAlert("Opa!", "Insira a quantidade de gasolina primeiro.", "alert-triangle");
+    return;
+  }
+  if (resultNumVal <= 0) {
+    showAlert("Opa!", "O cálculo resultou em zero.", "alert-triangle");
+    return;
+  }
+
+  if (!activeEquipName) {
+    showConfirm({
+      title: "Salvar Histórico",
+      message: "Como deseja salvar este registro?",
+      confirmText: "Salvar Avulso",
+      cancelText: "Cadastrar Item",
+      onConfirm: () => {
+        activeEquipName = null;
+        executeHistorySave();
+      },
+      onCancel: () => {
+        pendingHistorySave = true;
+        openEquipModal(currentRatio);
+      }
+    });
+  } else {
+    executeHistorySave();
+  }
 });
 
 getEl<HTMLElement>('clear-history')?.addEventListener('click', () => {
-  showConfirm("Limpar Histórico?", "Tem certeza que deseja apagar todos os registros?", async () => {
-    await set('mix_history', []);
-    renderHistory();
+  showConfirm({
+    title: "Limpar Histórico?",
+    message: "Tem certeza que deseja apagar todos os registros?",
+    confirmText: "Sim, Limpar",
+    onConfirm: async () => {
+      await set('mix_history', []);
+      renderHistory();
+    }
   });
 });
 
 getEl<HTMLElement>('share-btn')?.addEventListener('click', () => {
   const msg = `Mix2T Calc: Mistura de ${resultNum?.textContent}${resultUnit?.textContent} em ${isInverseMode ? oilInput?.value+'ml de óleo' : fuelInput?.value+'L de gasolina'} (${currentRatio}:1).`;
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`);
+});
+
+// listeners de histórico
+historySearchInput?.addEventListener('input', (e) => {
+  historySearchTerm = (e.target as HTMLInputElement).value;
+  renderHistory();
+});
+
+historySortSelect?.addEventListener('change', (e) => {
+  historySortBy = (e.target as HTMLSelectElement).value;
+  renderHistory();
 });
 
 [fuelInput, oilInput, ratioSlider, priceFuelInput, priceOilInput].forEach(el => {
@@ -521,6 +635,11 @@ getEl<HTMLElement>('share-btn')?.addEventListener('click', () => {
         brandIndicator.textContent = "Ajuste Manual";
         brandIndicator.style.color = "var(--text-muted)";
       }
+      // Tirar destaque dos botões se não bater
+      document.querySelectorAll('.brand-btn').forEach(btn => {
+        const btnRatio = btn.getAttribute('data-ratio');
+        btn.classList.toggle('active', btnRatio === ratioSlider.value);
+      });
     }
     calculate();
   });
@@ -529,14 +648,7 @@ getEl<HTMLElement>('share-btn')?.addEventListener('click', () => {
 document.querySelectorAll('.brand-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const ratio = btn.getAttribute('data-ratio') || '50';
-    if (ratioSlider) ratioSlider.value = ratio;
-    document.querySelectorAll('.brand-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeEquipName = null;
-    if (brandIndicator) {
-      brandIndicator.textContent = "Proporção Custom";
-    }
-    calculate();
+    updateRatioUI(parseInt(ratio));
   });
 });
 

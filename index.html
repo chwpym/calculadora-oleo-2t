@@ -153,6 +153,18 @@
           <h2 style="font-size: 1.125rem;">Últimas Misturas</h2>
           <button id="clear-history" class="text-link" style="color: var(--danger);">Limpar</button>
         </div>
+
+        <div class="history-controls" style="margin-bottom: 15px; display: flex; gap: 8px;">
+          <div class="search-container" style="flex: 1; margin: 0;">
+            <input type="text" id="history-search" placeholder="Filtrar histórico..." autocomplete="off">
+            <i data-lucide="search" style="position: absolute; right: 12px; top: 10px; color: var(--text-muted); width: 16px;"></i>
+          </div>
+          <select id="history-sort" style="width: auto; padding: 0 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-size: 0.8rem; outline: none; cursor: pointer;">
+            <option value="date">Data</option>
+            <option value="name">Nome</option>
+            <option value="ratio">Proporção</option>
+          </select>
+        </div>
         <div id="history-list" class="list-container">
           <!-- Items via JS -->
           <div class="empty-state">Seu histórico está vazio</div>
